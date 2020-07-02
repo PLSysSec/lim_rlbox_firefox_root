@@ -1,0 +1,26 @@
+read-configuration checkpoint.ckpt
+
+$system = "board"
+$con = $system.serconsole.con
+$cpu = $system.mb.cpu0.core[0][0]
+run-python-file ./scripts/init.py
+
+script-branch "setup_simics_user" {
+    # Wait until simulation is started
+    board.mb.cpu0.core[0][0].wait-for-step 10 -relative
+    @command_to_console("cd /usr/src/lim_rlbox_firefox_root && make test_guest_png")
+}
+
+$loop = 1
+
+script-branch "debug" {
+    $con.wait-for-string "Sleeping for 300000 seconds."
+    echo "Firefox crashed!"
+    $loop = 0
+    stop
+}
+
+enable-real-time-mode
+connect-real-network target-ip = 10.10.0.100
+new-lim-model -connect-all -use-compartment-id
+run

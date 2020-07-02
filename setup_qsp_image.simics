@@ -1,0 +1,27 @@
+$system = "board"
+$con = $system.serconsole.con
+$cpu = $system.mb.cpu0.core[0][0]
+run-python-file ./scripts/init.py
+
+script-branch "setup_simics_user" {
+    # Wait until simulation is started
+    board.mb.cpu0.core[0][0].wait-for-step 10 -relative
+    @command_to_console("sudo swupd update")
+    @command_to_console("sudo swupd bundle-add c-basic containers-basic")
+    @command_to_console("sudo systemctl start docker")
+    @command_to_console("ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa <<< y")
+    @command_to_console("echo 'Add current SSH key in ~/.ssh/id_rsa to access github repos and then run the following command to continue--- sudo modprobe msr; sudo rdmsr 0x3a'")
+}
+
+script-branch "make_build_and_enable_lim_mode" {
+    local $cpu_any = (pselect)
+    # Script rsync uses ia32_feature_control as an interrupt mechanism
+    $cpu_any.wait-for-register-read ia32_feature_control
+    # wait for time just in case
+    board.mb.cpu0.core[0][0].wait-for-time 1 -relative
+    @command_to_console("git clone lim/lim_rlbox_firefox_root.git && cd lim_rlbox_firefox_root && echo 'Root repo has been setup. You can now run make build_host to create the docker image'")
+}
+
+enable-real-time-mode
+connect-real-network target-ip = 10.10.0.100
+run
